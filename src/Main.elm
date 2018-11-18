@@ -18,7 +18,8 @@ multiple_records =
     {"orig_train":"862","orig_line":"Chestnut Hill West","orig_departure_time":" 8:26PM","orig_arrival_time":" 8:59PM","orig_delay":"On time","isdirect":"true"},
     {"orig_train":"866","orig_line":"Chestnut Hill West","orig_departure_time":" 9:26PM","orig_arrival_time":" 9:59PM","orig_delay":"On time","isdirect":"true"},
     {"orig_train":"870","orig_line":"Chestnut Hill West","orig_departure_time":"10:14PM","orig_arrival_time":"10:46PM","orig_delay":"On time","isdirect":"true"},
-    {"orig_train":"8234","orig_line":"Chestnut Hill West","orig_departure_time":"10:54PM","orig_arrival_time":"11:25PM","orig_delay":"On time","isdirect":"true"}
+    {"orig_train":"8234","orig_line":"Chestnut Hill West","orig_departure_time":"10:54PM","orig_arrival_time":"11:25PM","orig_delay":"On time","isdirect":"true"},
+    {"orig_train":"8234","orig_line":"Chestnut Hill West","orig_departure_time":"11:14PM","orig_arrival_time":"11:45PM","orig_delay":"On time","isdirect":"true"}
     ]
 """
 
@@ -33,8 +34,8 @@ type alias Train =
     }
 
 
-d : Decode.Decoder Train
-d =
+decodeTrain : Decode.Decoder Train
+decodeTrain =
     Decode.map6 Train
         (Decode.field "orig_train" Decode.string)
         (Decode.field "orig_line" Decode.string)
@@ -46,20 +47,22 @@ d =
 
 decodeTrains : Decode.Decoder (List Train)
 decodeTrains =
-    Decode.list d
+    Decode.list decodeTrain
 
 
 
 ---- MODEL ----
 
 
-type alias Model =
-    {}
+type Model
+    = Failure
+    | Loading
+    | Success String
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( {}, Cmd.none )
+    ( Success multiple_records, Cmd.none )
 
 
 
@@ -80,14 +83,17 @@ update msg model =
 --parseResults : List Train
 
 
-parseResults =
-    Decode.decodeString decodeTrains multiple_records
+parseResults response =
+    Decode.decodeString decodeTrains response
 
 
-times =
+fetchTimes response =
     let
+        results =
+            parseResults response
+
         trains =
-            case parseResults of
+            case results of
                 Ok t ->
                     t
 
@@ -99,28 +105,28 @@ times =
 
 view : Model -> Html Msg
 view model =
-    let
-        res =
-            Decode.decodeString d single_record
+    case model of
+        Failure ->
+            div [] [ text "trouble loading results from SEPTA" ]
 
-        time =
-            case res of
-                Ok v ->
-                    v.departureTime
+        Loading ->
+            text "Loading..."
 
-                Err e ->
-                    Debug.toString e
-    in
-    div []
-        (List.append
-            [ img [ src "/logo.svg" ] []
-            , h1 [] [ text ("Your Elm App is working at!" ++ time) ]
-            ]
-            (List.map
-                (\a -> p [] [ text ("leaving at: " ++ a) ])
-                times
-            )
-        )
+        Success response ->
+            let
+                times =
+                    fetchTimes response
+            in
+            div []
+                (List.append
+                    [ img [ src "/logo.svg" ] []
+                    , h1 [] [ text "Your Elm App is working at!" ]
+                    ]
+                    (List.map
+                        (\a -> p [] [ text ("leaving at: " ++ a) ])
+                        times
+                    )
+                )
 
 
 
