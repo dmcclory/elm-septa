@@ -3,6 +3,7 @@ module Main exposing (Model, Msg(..), init, main, multiple_records, update, view
 import Browser
 import Html exposing (Html, div, h1, img, p, text)
 import Html.Attributes exposing (src)
+import Http
 import Json.Decode as Decode
 
 
@@ -57,12 +58,12 @@ decodeTrains =
 type Model
     = Failure
     | Loading
-    | Success String
+    | Success (List Train)
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( Success multiple_records, Cmd.none )
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( Loading, send )
 
 
 
@@ -71,35 +72,30 @@ init =
 
 type Msg
     = NoOp
+    | GotData (Result Http.Error (List Train))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        NoOp ->
+            ( model, Cmd.none )
 
+        GotData result ->
+            case result of
+                Ok data ->
+                    ( Success data, Cmd.none )
 
-
----- VIEW ----
---parseResults : List Train
+                Err _ ->
+                    ( Failure, Cmd.none )
 
 
 parseResults response =
     Decode.decodeString decodeTrains response
 
 
-fetchTimes response =
-    let
-        results =
-            parseResults response
-
-        trains =
-            case results of
-                Ok t ->
-                    t
-
-                Err e ->
-                    []
-    in
+fetchTimes : List Train -> List String
+fetchTimes trains =
     List.map .departureTime trains
 
 
@@ -107,15 +103,15 @@ view : Model -> Html Msg
 view model =
     case model of
         Failure ->
-            div [] [ text "trouble loading results from SEPTA" ]
+            div [] [ text (Debug.toString model) ]
 
         Loading ->
             text "Loading..."
 
-        Success response ->
+        Success trains ->
             let
                 times =
-                    fetchTimes response
+                    fetchTimes trains
             in
             div []
                 (List.append
@@ -123,21 +119,34 @@ view model =
                     , h1 [] [ text "Your Elm App is working at!" ]
                     ]
                     (List.map
-                        (\a -> p [] [ text ("leaving at: " ++ a) ])
-                        times
+                        (\a -> p [] [ text (a.line ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay) ])
+                        trains
                     )
                 )
 
 
+getSeptaData : Http.Request (List Train)
+getSeptaData =
+    Http.get "http://localhost:4567/forward/Chestnut%20Hill%20West/Market%20East/10" decodeTrains
 
----- PROGRAM ----
+
+
+-- Http.get "http://www3.septa.org/hackathon/NextToArrive/Chestnut%20Hill%20West/Suburban%20Station/10" decodeTrains
+-- Http.get "http://localhost:4567/forward/Market%20East/Chestnut%20Hill%20West/10" decodeTrains
+-- Http.get "http://localhost:4567/forward/Trenton/Market%20East/10" decodeTrains
+-- Http.get "http://localhost:4567/forward/Market%20East/Trenton/10" decodeTrains
+
+
+send : Cmd Msg
+send =
+    Http.send GotData getSeptaData
 
 
 main : Program () Model Msg
 main =
     Browser.element
         { view = view
-        , init = \_ -> init
+        , init = init
         , update = update
         , subscriptions = always Sub.none
         }
