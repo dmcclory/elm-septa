@@ -59,13 +59,12 @@ decodeTrains =
 type alias Line =
     { name : String
     , trains : List Train
+    , reqStatus : Request
     }
 
 
 type alias Model =
-    { reqStatus : Request
-    , line : Line
-    }
+    Line
 
 
 type Request
@@ -80,7 +79,7 @@ init _ =
         name =
             "Chestnut Hill West"
     in
-    ( { reqStatus = Loading, line = { name = name, trains = [] } }, send name )
+    ( { reqStatus = Loading, name = name, trains = [] }, send name )
 
 
 
@@ -108,9 +107,9 @@ update msg model =
                 Ok data ->
                     let
                         newLine =
-                            setTrains data model.line
+                            setTrains data model
                     in
-                    ( { model | reqStatus = Success, line = newLine }, Cmd.none )
+                    ( { newLine | reqStatus = Success }, Cmd.none )
 
                 Err _ ->
                     ( { model | reqStatus = Failure }, Cmd.none )
@@ -120,9 +119,15 @@ parseResults response =
     Decode.decodeString decodeTrains response
 
 
-fetchTimes : List Train -> List String
-fetchTimes trains =
-    List.map .departureTime trains
+viewLine line =
+    div []
+        (List.append
+            [ h1 [] [ text line.name ] ]
+            (List.map
+                (\a -> p [] [ text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay) ])
+                line.trains
+            )
+        )
 
 
 view : Model -> Html Msg
@@ -135,16 +140,7 @@ view model =
             text "Loading..."
 
         Success ->
-            div []
-                (List.append
-                    [ img [ src "/logo.svg" ] []
-                    , h1 [] [ text "Your Elm App is working at!" ]
-                    ]
-                    (List.map
-                        (\a -> p [] [ text (a.line ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay) ])
-                        model.line.trains
-                    )
-                )
+            viewLine model
 
 
 getSeptaData : String -> Http.Request (List Train)
