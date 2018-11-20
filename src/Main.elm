@@ -5,6 +5,7 @@ import Html exposing (Html, div, h1, img, p, text)
 import Html.Attributes exposing (src)
 import Http
 import Json.Decode as Decode
+import Url.Builder exposing (crossOrigin)
 
 
 single_record =
@@ -55,15 +56,31 @@ decodeTrains =
 ---- MODEL ----
 
 
-type Model
+type alias Line =
+    { name : String
+    , trains : List Train
+    }
+
+
+type alias Model =
+    { reqStatus : Request
+    , line : Line
+    }
+
+
+type Request
     = Failure
     | Loading
-    | Success (List Train)
+    | Success
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Loading, send )
+    let
+        name =
+            "Chestnut Hill West"
+    in
+    ( { reqStatus = Loading, line = { name = name, trains = [] } }, send name )
 
 
 
@@ -75,6 +92,11 @@ type Msg
     | GotData (Result Http.Error (List Train))
 
 
+setTrains : List Train -> Line -> Line
+setTrains newTrains line =
+    { line | trains = newTrains }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -84,10 +106,14 @@ update msg model =
         GotData result ->
             case result of
                 Ok data ->
-                    ( Success data, Cmd.none )
+                    let
+                        newLine =
+                            setTrains data model.line
+                    in
+                    ( { model | reqStatus = Success, line = newLine }, Cmd.none )
 
                 Err _ ->
-                    ( Failure, Cmd.none )
+                    ( { model | reqStatus = Failure }, Cmd.none )
 
 
 parseResults response =
@@ -101,18 +127,14 @@ fetchTimes trains =
 
 view : Model -> Html Msg
 view model =
-    case model of
+    case model.reqStatus of
         Failure ->
             div [] [ text (Debug.toString model) ]
 
         Loading ->
             text "Loading..."
 
-        Success trains ->
-            let
-                times =
-                    fetchTimes trains
-            in
+        Success ->
             div []
                 (List.append
                     [ img [ src "/logo.svg" ] []
@@ -120,14 +142,18 @@ view model =
                     ]
                     (List.map
                         (\a -> p [] [ text (a.line ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay) ])
-                        trains
+                        model.line.trains
                     )
                 )
 
 
-getSeptaData : Http.Request (List Train)
-getSeptaData =
-    Http.get "http://localhost:4567/forward/Chestnut%20Hill%20West/Market%20East/10" decodeTrains
+getSeptaData : String -> Http.Request (List Train)
+getSeptaData originStation =
+    let
+        url =
+            crossOrigin "http://localhost:4567" [ "forward", originStation, "Market East", "10" ] []
+    in
+    Http.get url decodeTrains
 
 
 
@@ -137,9 +163,9 @@ getSeptaData =
 -- Http.get "http://localhost:4567/forward/Market%20East/Trenton/10" decodeTrains
 
 
-send : Cmd Msg
-send =
-    Http.send GotData getSeptaData
+send : String -> Cmd Msg
+send lineName =
+    Http.send GotData (getSeptaData lineName)
 
 
 main : Program () Model Msg
