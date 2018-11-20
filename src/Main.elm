@@ -64,7 +64,7 @@ type alias Line =
 
 
 type alias Model =
-    Line
+    List Line
 
 
 type Request
@@ -73,13 +73,25 @@ type Request
     | Success
 
 
+lines =
+    [ "Airport"
+    , "Chestnut Hill West"
+    , "Chestnut Hill West"
+    , "Lansdale-Doylestown"
+    ]
+
+
+current =
+    "Chestnut Hill West"
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
     let
-        name =
-            "Chestnut Hill West"
+        line =
+            { reqStatus = Loading, name = current, trains = [] }
     in
-    ( { reqStatus = Loading, name = name, trains = [] }, send name )
+    ( [ line ], send line.name )
 
 
 
@@ -96,6 +108,24 @@ setTrains newTrains line =
     { line | trains = newTrains }
 
 
+updateGoofy : String -> List Train -> Line -> Line
+updateGoofy lineName trains line =
+    if line.name == lineName then
+        let
+            newLine =
+                setTrains trains line
+        in
+        { newLine | reqStatus = Success }
+
+    else
+        line
+
+
+setToFailure : Line -> Line
+setToFailure line =
+    { line | reqStatus = Failure }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -106,20 +136,20 @@ update msg model =
             case result of
                 Ok data ->
                     let
-                        newLine =
-                            setTrains data model
+                        updater =
+                            updateGoofy current data
                     in
-                    ( { newLine | reqStatus = Success }, Cmd.none )
+                    ( List.map updater model, Cmd.none )
 
                 Err _ ->
-                    ( { model | reqStatus = Failure }, Cmd.none )
+                    ( List.map setToFailure model, Cmd.none )
 
 
 parseResults response =
     Decode.decodeString decodeTrains response
 
 
-viewLine line =
+viewTrains line =
     div []
         (List.append
             [ h1 [] [ text line.name ] ]
@@ -132,15 +162,24 @@ viewLine line =
 
 view : Model -> Html Msg
 view model =
-    case model.reqStatus of
+    let
+        divs =
+            List.map viewLine model
+    in
+    div [] divs
+
+
+viewLine : Line -> Html Msg
+viewLine line =
+    case line.reqStatus of
         Failure ->
-            div [] [ text (Debug.toString model) ]
+            div [] [ text (Debug.toString line) ]
 
         Loading ->
             text "Loading..."
 
         Success ->
-            viewLine model
+            viewTrains line
 
 
 getSeptaData : String -> Http.Request (List Train)
