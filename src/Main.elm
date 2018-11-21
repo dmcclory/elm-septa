@@ -136,8 +136,16 @@ update msg model =
             case result of
                 Ok data ->
                     let
+                        -- get the current line from the first result
+                        -- set to failure if that is empty
+                        -- pass that in the updater
                         updater =
-                            updateGoofy current data
+                            case List.head data of
+                                Just t ->
+                                    updateGoofy t.line data
+
+                                Nothing ->
+                                    setToFailure
                     in
                     ( List.map updater model, Cmd.none )
 
@@ -189,13 +197,6 @@ getSeptaData originStation =
             crossOrigin "http://localhost:4567" [ "forward", originStation, "Market East", "10" ] []
     in
     Http.get url decodeTrains
-
-
-
--- Http.get "http://www3.septa.org/hackathon/NextToArrive/Chestnut%20Hill%20West/Suburban%20Station/10" decodeTrains
--- Http.get "http://localhost:4567/forward/Market%20East/Chestnut%20Hill%20West/10" decodeTrains
--- Http.get "http://localhost:4567/forward/Trenton/Market%20East/10" decodeTrains
--- Http.get "http://localhost:4567/forward/Market%20East/Trenton/10" decodeTrains
 
 
 send : String -> Cmd Msg
