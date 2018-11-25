@@ -1,4 +1,4 @@
-module Main exposing (Model, Msg(..), init, main, multiple_records, update, view)
+module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
 import Html exposing (Html, div, h1, img, p, text)
@@ -8,22 +8,14 @@ import Json.Decode as Decode
 import Url.Builder exposing (crossOrigin)
 
 
-single_record =
-    """{"orig_train":"850","orig_line":"Chestnut Hill West","orig_departure_time":" 5:46PM","orig_arrival_time":" 5:59PM","orig_delay":"On time","isdirect":"true"}"""
-
-
-multiple_records =
-    """[
-    {"orig_train":"850","orig_line":"Chestnut Hill West","orig_departure_time":" 5:26PM","orig_arrival_time":" 5:59PM","orig_delay":"On time","isdirect":"true"},
-    {"orig_train":"854","orig_line":"Chestnut Hill West","orig_departure_time":" 6:26PM","orig_arrival_time":" 6:59PM","orig_delay":"On time","isdirect":"true"},
-    {"orig_train":"858","orig_line":"Chestnut Hill West","orig_departure_time":" 7:26PM","orig_arrival_time":" 7:59PM","orig_delay":"On time","isdirect":"true"},
-    {"orig_train":"862","orig_line":"Chestnut Hill West","orig_departure_time":" 8:26PM","orig_arrival_time":" 8:59PM","orig_delay":"On time","isdirect":"true"},
-    {"orig_train":"866","orig_line":"Chestnut Hill West","orig_departure_time":" 9:26PM","orig_arrival_time":" 9:59PM","orig_delay":"On time","isdirect":"true"},
-    {"orig_train":"870","orig_line":"Chestnut Hill West","orig_departure_time":"10:14PM","orig_arrival_time":"10:46PM","orig_delay":"On time","isdirect":"true"},
-    {"orig_train":"8234","orig_line":"Chestnut Hill West","orig_departure_time":"10:54PM","orig_arrival_time":"11:25PM","orig_delay":"On time","isdirect":"true"},
-    {"orig_train":"8234","orig_line":"Chestnut Hill West","orig_departure_time":"11:14PM","orig_arrival_time":"11:45PM","orig_delay":"On time","isdirect":"true"}
-    ]
-"""
+main : Program () Model Msg
+main =
+    Browser.element
+        { view = view
+        , init = init
+        , update = update
+        , subscriptions = always Sub.none
+        }
 
 
 type alias Train =
@@ -103,7 +95,21 @@ init _ =
                 )
                 lineDatas
     in
-    ( lineData, send lineDatas )
+    ( lineData, kickoffRequests lineDatas )
+
+
+kickoffRequests : List ( String, String ) -> Cmd Msg
+kickoffRequests lds =
+    Cmd.batch (List.map (\l -> Http.send GotData (getSeptaData (Tuple.first l))) lds)
+
+
+getSeptaData : String -> Http.Request (List Train)
+getSeptaData originStation =
+    let
+        url =
+            crossOrigin "http://localhost:4567" [ "forward", originStation, "Market East", "10" ] []
+    in
+    Http.get url decodeTrains
 
 
 
@@ -166,22 +172,7 @@ update msg model =
 
 
 
---    ( List.map (setToFailure model (Debug.toString x)), Cmd.none )
-
-
-parseResults response =
-    Decode.decodeString decodeTrains response
-
-
-viewTrains line =
-    div []
-        (List.append
-            [ h1 [] [ text line.name ] ]
-            (List.map
-                (\a -> p [] [ text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay) ])
-                line.trains
-            )
-        )
+---- VIEW ----
 
 
 view : Model -> Html Msg
@@ -206,25 +197,12 @@ viewLine line =
             viewTrains line
 
 
-getSeptaData : String -> Http.Request (List Train)
-getSeptaData originStation =
-    let
-        url =
-            crossOrigin "http://localhost:4567" [ "forward", originStation, "Market East", "10" ] []
-    in
-    Http.get url decodeTrains
-
-
-send : List ( String, String ) -> Cmd Msg
-send lds =
-    Cmd.batch (List.map (\l -> Http.send GotData (getSeptaData (Tuple.first l))) lds)
-
-
-main : Program () Model Msg
-main =
-    Browser.element
-        { view = view
-        , init = init
-        , update = update
-        , subscriptions = always Sub.none
-        }
+viewTrains line =
+    div []
+        (List.append
+            [ h1 [] [ text line.name ] ]
+            (List.map
+                (\a -> p [] [ text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay) ])
+                line.trains
+            )
+        )
