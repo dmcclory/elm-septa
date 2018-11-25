@@ -1,8 +1,10 @@
 module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
-import Element exposing (Element, column, el, fill, rgb, text, width)
+import Element exposing (Element, centerX, centerY, column, el, fill, px, rgb, spacing, text, width, wrappedRow)
 import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Html exposing (Html)
 import Http
 import Json.Decode as Decode
@@ -180,13 +182,13 @@ view : Model -> Html Msg
 view model =
     let
         divs =
-            List.map viewLine model
+            wrappedRow [] (List.map viewLine model)
     in
-    Element.layout [] (column [ Element.width fill ] ([ viewHeader ] ++ divs))
+    Element.layout [] (column [ Background.color (rgb 0 0 0), Font.color (rgb 255 255 255), width fill, centerX, spacing 30 ] [ viewHeader, divs ])
 
 
 viewHeader =
-    el [ Background.color (rgb 0 0.5 0) ] (text "Departures to Center City")
+    el [ Background.color (rgb 0 0 140), centerX, Font.color (rgb 255 255 255), width fill, Font.bold, Font.size 30 ] (text "Departures to Center City")
 
 
 viewLine : Line -> Element Msg
@@ -204,7 +206,11 @@ viewLine line =
 
 viewTrains : Line -> Element Msg
 viewTrains line =
-    column []
+    column
+        [ Border.color (rgb 255 255 255)
+        , Border.width 1
+        , Border.solid
+        ]
         ([ el [] (text line.name) ]
             ++ List.map
                 (\a -> el [] (text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay)))
