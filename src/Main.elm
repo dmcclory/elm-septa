@@ -1,7 +1,7 @@
 module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
-import Element exposing (Element, centerX, centerY, column, el, fill, px, rgb, spacing, text, width, wrappedRow)
+import Element exposing (Element, centerX, centerY, column, el, fill, height, px, rgb, spacing, text, width, wrappedRow)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -198,19 +198,33 @@ viewLine line =
             el [] (text (Debug.toString line ++ ": " ++ m))
 
         Loading ->
-            text "Loading..."
+            viewLoading
 
         Success ->
             viewTrains line
 
 
+
+-- boxAttrs : List Element.Attribute Msg
+
+
+boxAttrs =
+    [ Border.color (rgb 255 255 255)
+    , Border.width 1
+    , Border.solid
+    , width (px 475)
+    , height (px 290)
+    ]
+
+
+viewLoading : Element Msg
+viewLoading =
+    el boxAttrs (text "Loading...")
+
+
 viewTrains : Line -> Element Msg
 viewTrains line =
-    column
-        [ Border.color (rgb 255 255 255)
-        , Border.width 1
-        , Border.solid
-        ]
+    column boxAttrs
         ([ el [] (text line.name) ]
             ++ List.map
                 (\a -> el [] (text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay)))
