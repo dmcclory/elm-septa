@@ -253,8 +253,12 @@ viewLoading =
 viewTrains : Line -> Element Msg
 viewTrains line =
     column boxAttrs
-        ([ el [] (text line.name) ]
+        ([ viewLineHeader line ]
             ++ List.map
                 (\a -> el [] (text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay)))
                 line.trains
         )
+
+
+viewLineHeader line =
+    row [ Background.color darkBlue, width fill, height (px 50), centerX ] [ el [ centerX ] (text line.name) ]
