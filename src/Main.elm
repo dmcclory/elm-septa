@@ -68,16 +68,24 @@ type alias Model =
 
 
 type Request
-    = Failure
+    = Failure String
     | Loading
     | Success
 
 
-lines =
-    [ "Airport"
-    , "Chestnut Hill West"
-    , "Chestnut Hill West"
-    , "Lansdale-Doylestown"
+lineDatas =
+    [ ( "Airport Terminal E-F", "Airport" )
+    , ( "Chestnut Hill East", "Chestnut Hill East" )
+    , ( "Chestnut Hill West", "Chestnut Hill West" )
+    , ( "Fox Chase", "Fox Chase" )
+    , ( "Lansdale", "Lansdale/Doylestown" )
+    , ( "Manayunk", "Manayunk/Norristown" )
+    , ( "Elwyn Station", "Media/Elwyn" )
+    , ( "Malvern", "Paoli/Thorndale" )
+    , ( "Trenton", "Trenton" )
+    , ( "Warminster", "Warminster" )
+    , ( "West Trenton", "West Trenton" )
+    , ( "Wilmington", "Wilmington/Newark" )
     ]
 
 
@@ -88,10 +96,14 @@ current =
 init : () -> ( Model, Cmd Msg )
 init _ =
     let
-        line =
-            { reqStatus = Loading, name = current, trains = [] }
+        lineData =
+            List.map
+                (\l ->
+                    { reqStatus = Loading, name = Tuple.second l, trains = [] }
+                )
+                lineDatas
     in
-    ( [ line ], send line.name )
+    ( lineData, send lineDatas )
 
 
 
@@ -121,9 +133,9 @@ updateGoofy lineName trains line =
         line
 
 
-setToFailure : Line -> Line
-setToFailure line =
-    { line | reqStatus = Failure }
+setToFailure : String -> Line -> Line
+setToFailure message line =
+    { line | reqStatus = Failure message }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -145,12 +157,16 @@ update msg model =
                                     updateGoofy t.line data
 
                                 Nothing ->
-                                    setToFailure
+                                    setToFailure "data seems ... empty?"
                     in
                     ( List.map updater model, Cmd.none )
 
-                Err _ ->
-                    ( List.map setToFailure model, Cmd.none )
+                Err x ->
+                    ( List.map (setToFailure (Debug.toString x)) model, Cmd.none )
+
+
+
+--    ( List.map (setToFailure model (Debug.toString x)), Cmd.none )
 
 
 parseResults response =
@@ -180,8 +196,8 @@ view model =
 viewLine : Line -> Html Msg
 viewLine line =
     case line.reqStatus of
-        Failure ->
-            div [] [ text (Debug.toString line) ]
+        Failure m ->
+            div [] [ text (Debug.toString line ++ ": " ++ m) ]
 
         Loading ->
             text "Loading..."
@@ -199,9 +215,9 @@ getSeptaData originStation =
     Http.get url decodeTrains
 
 
-send : String -> Cmd Msg
-send lineName =
-    Http.send GotData (getSeptaData lineName)
+send : List ( String, String ) -> Cmd Msg
+send lds =
+    Cmd.batch (List.map (\l -> Http.send GotData (getSeptaData (Tuple.first l))) lds)
 
 
 main : Program () Model Msg
