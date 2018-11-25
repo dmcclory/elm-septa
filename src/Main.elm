@@ -1,8 +1,9 @@
 module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
-import Html exposing (Html, div, h1, img, p, text)
-import Html.Attributes exposing (src)
+import Element exposing (Element, column, el, fill, rgb, text, width)
+import Element.Background as Background
+import Html exposing (Html)
 import Http
 import Json.Decode as Decode
 import Url.Builder exposing (crossOrigin)
@@ -181,14 +182,18 @@ view model =
         divs =
             List.map viewLine model
     in
-    div [] divs
+    Element.layout [] (column [ Element.width fill ] ([ viewHeader ] ++ divs))
 
 
-viewLine : Line -> Html Msg
+viewHeader =
+    el [ Background.color (rgb 0 0.5 0) ] (text "Departures to Center City")
+
+
+viewLine : Line -> Element Msg
 viewLine line =
     case line.reqStatus of
         Failure m ->
-            div [] [ text (Debug.toString line ++ ": " ++ m) ]
+            el [] (text (Debug.toString line ++ ": " ++ m))
 
         Loading ->
             text "Loading..."
@@ -197,12 +202,11 @@ viewLine line =
             viewTrains line
 
 
+viewTrains : Line -> Element Msg
 viewTrains line =
-    div []
-        (List.append
-            [ h1 [] [ text line.name ] ]
-            (List.map
-                (\a -> p [] [ text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay) ])
+    column []
+        ([ el [] (text line.name) ]
+            ++ List.map
+                (\a -> el [] (text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay)))
                 line.trains
-            )
         )
