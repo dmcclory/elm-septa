@@ -229,7 +229,7 @@ viewLine line =
             viewLoading
 
         Success ->
-            viewTrains line
+            viewLineRefactorMe line
 
 
 
@@ -250,14 +250,16 @@ viewLoading =
     el boxAttrs (text "Loading...")
 
 
-viewTrains : Line -> Element Msg
-viewTrains line =
+viewLineRefactorMe : Line -> Element Msg
+viewLineRefactorMe line =
     column boxAttrs
         ([ viewLineHeader line ]
-            ++ List.map
-                (\a -> el [] (text (a.number ++ " leaving at: " ++ a.departureTime ++ ". delayed? " ++ a.delay)))
-                line.trains
+            ++ (List.take 4 line.trains |> List.map viewTrain)
         )
+
+
+viewTrain train =
+    el [] (text (train.number ++ " leaving at: " ++ train.departureTime ++ ". delayed? " ++ train.delay))
 
 
 viewLineHeader line =
