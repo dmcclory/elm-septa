@@ -1,7 +1,7 @@
 module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
-import Element exposing (Element, centerX, centerY, column, el, fill, height, px, rgb, spacing, text, width, wrappedRow)
+import Element exposing (Element, centerX, centerY, column, el, fill, height, padding, px, rgb255, row, spacing, text, width, wrappedRow)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -178,17 +178,45 @@ update msg model =
 ---- VIEW ----
 
 
+white =
+    rgb255 255 255 255
+
+
+black =
+    rgb255 0 0 0
+
+
+blue =
+    rgb255 0 0 204
+
+
+green =
+    rgb255 0 255 0
+
+
+red =
+    rgb255 255 0 0
+
+
+cyan =
+    rgb255 0 255 255
+
+
+darkBlue =
+    rgb255 0 0 102
+
+
 view : Model -> Html Msg
 view model =
     let
         divs =
             wrappedRow [] (List.map viewLine model)
     in
-    Element.layout [] (column [ Background.color (rgb 0 0 0), Font.color (rgb 255 255 255), width fill, centerX, spacing 30 ] [ viewHeader, divs ])
+    Element.layout [] (column [ Background.color black, Font.color white, width fill, centerX, padding 5 ] [ viewHeader, divs ])
 
 
 viewHeader =
-    el [ Background.color (rgb 0 0 140), centerX, Font.color (rgb 255 255 255), width fill, Font.bold, Font.size 30 ] (text "Departures to Center City")
+    el [ Background.color blue, centerX, width fill, Font.bold, Font.size 30 ] (text "Departures to Center City")
 
 
 viewLine : Line -> Element Msg
@@ -209,7 +237,7 @@ viewLine line =
 
 
 boxAttrs =
-    [ Border.color (rgb 255 255 255)
+    [ Border.color white
     , Border.width 1
     , Border.solid
     , width (px 475)
