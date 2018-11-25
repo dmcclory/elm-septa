@@ -126,12 +126,12 @@ setTrains newTrains line =
     { line | trains = newTrains }
 
 
-updateGoofy : String -> List Train -> Line -> Line
-updateGoofy lineName trains line =
+updateIfLineNameMatches : String -> List Train -> Line -> Line
+updateIfLineNameMatches lineName trainResult line =
     if line.name == lineName then
         let
             newLine =
-                setTrains trains line
+                setTrains trainResult line
         in
         { newLine | reqStatus = Success }
 
@@ -160,7 +160,7 @@ update msg model =
                         updater =
                             case List.head data of
                                 Just t ->
-                                    updateGoofy t.line data
+                                    updateIfLineNameMatches t.line data
 
                                 Nothing ->
                                     setToFailure "data seems ... empty?"
