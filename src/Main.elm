@@ -264,10 +264,23 @@ viewLineRefactorMe line =
 
 viewTrain train =
     row [ height (px 50), width fill, Border.color grey, Border.widthEach { bottom = 1, top = 0, left = 0, right = 0 }, spacing 30, paddingXY 20 0 ]
-        [ column [ Font.size 16 ] [ text train.departureTime, text train.delay ] -- eventually lateness
+        [ column [ Font.size 16 ] [ text train.departureTime, viewTrainStatus train.delay ] -- eventually lateness
         , column [ alignLeft, Font.size 16 ] [ text train.line, el [ Font.color cyan ] (text "LOCAL") ]
         , column [ alignRight, Font.size 16, width (px 40) ] [ text "1A", el [ Font.color cyan ] (text train.number) ]
         ]
+
+
+viewTrainStatus delay =
+    let
+        c =
+            case delay of
+                "On time" ->
+                    green
+
+                _ ->
+                    red
+    in
+    el [ Font.color c ] (text (String.toUpper delay))
 
 
 viewLineHeader line =
