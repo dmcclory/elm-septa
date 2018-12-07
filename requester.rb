@@ -24,7 +24,11 @@ end
 get '/forward/*' do |path|
   content_type :json
   url = "http://www3.septa.org/hackathon/NextToArrive/#{path}"
-  body = Http.get(url).body
-  res = body.take_while { |i| i != nil }
-  res.join
+
+  response = Http.get(url)
+  body = response.body
+  puts "got a ??? response code: #{response.code}"
+  result = body.take_while { |i| i != nil }
+  puts "going to return this as json: #{result.join}"
+  result.join
 end
