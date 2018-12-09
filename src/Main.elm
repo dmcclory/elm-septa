@@ -1,9 +1,10 @@
 module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
-import Element exposing (Element, alignLeft, alignRight, centerX, centerY, column, el, fill, height, padding, paddingXY, px, rgb255, row, spacing, text, width, wrappedRow)
+import Element exposing (Element, alignLeft, alignRight, centerX, centerY, column, el, fill, height, padding, paddingEach, paddingXY, px, rgb255, row, spacing, text, width, wrappedRow)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Events as Events
 import Element.Font as Font
 import Html exposing (Html)
 import Http
@@ -59,7 +60,9 @@ type alias Line =
 
 
 type alias Model =
-    List Line
+    { lines : List Line
+    , inbound : Bool
+    }
 
 
 type Request
@@ -97,20 +100,31 @@ init _ =
                     { reqStatus = Loading, name = Tuple.second l, trains = [] }
                 )
                 lineDatas
+
+        inbound =
+            True
     in
-    ( lineData, kickoffRequests lineDatas )
+    ( { lines = lineData, inbound = inbound }, kickoffRequests lineDatas inbound )
 
 
-kickoffRequests : List ( String, String ) -> Cmd Msg
-kickoffRequests lds =
-    Cmd.batch (List.map (\l -> Http.send GotData (getSeptaData (Tuple.first l))) lds)
+kickoffRequests : List ( String, String ) -> Bool -> Cmd Msg
+kickoffRequests lds inbound =
+    Cmd.batch (List.map (\l -> Http.send GotData (getSeptaData (Tuple.first l) inbound)) lds)
 
 
-getSeptaData : String -> Http.Request (List Train)
-getSeptaData originStation =
+getSeptaData : String -> Bool -> Http.Request (List Train)
+getSeptaData originStation inbound =
     let
+        ( origin, destination ) =
+            case inbound of
+                True ->
+                    ( originStation, "Market East" )
+
+                False ->
+                    ( "Market East", originStation )
+
         url =
-            crossOrigin "http://localhost:4567" [ "forward", originStation, "Market East", "10" ] []
+            crossOrigin "http://localhost:4567" [ "forward", origin, destination, "10" ] []
     in
     Http.get url decodeTrains
 
@@ -122,6 +136,7 @@ getSeptaData originStation =
 type Msg
     = NoOp
     | GotData (Result Http.Error (List Train))
+    | SetDirection Bool
 
 
 setTrains : List Train -> Line -> Line
@@ -153,6 +168,9 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
+        SetDirection direction ->
+            ( { model | inbound = Debug.log "going to set dir to: " direction }, Cmd.none )
+
         GotData result ->
             case result of
                 Ok data ->
@@ -168,10 +186,10 @@ update msg model =
                                 Nothing ->
                                     setToFailure "data seems ... empty?"
                     in
-                    ( List.map updater model, Cmd.none )
+                    ( { model | lines = List.map updater model.lines }, Cmd.none )
 
                 Err x ->
-                    ( List.map (setToFailure (Debug.toString x)) model, Cmd.none )
+                    ( { model | lines = List.map (setToFailure (Debug.toString x)) model.lines }, Cmd.none )
 
 
 
@@ -214,13 +232,56 @@ view : Model -> Html Msg
 view model =
     let
         divs =
-            wrappedRow [] (List.map viewLine model)
+            wrappedRow [] (List.map viewLine model.lines)
     in
-    Element.layout [] (column [ Background.color black, Font.color white, width fill, centerX, padding 5 ] [ viewHeader, divs ])
+    Element.layout []
+        (column
+            [ Background.color black, Font.color white, width fill, centerX, padding 5 ]
+            [ viewHeader model.inbound
+            , divs
+            ]
+        )
 
 
-viewHeader =
-    el [ Background.color blue, centerX, width fill, Font.bold, Font.size 30 ] (text "Departures to Center City")
+viewHeader inbound =
+    let
+        cool =
+            case inbound of
+                True ->
+                    "to"
+
+                False ->
+                    "from"
+    in
+    row [ Background.color blue, centerX, width fill ]
+        [ el [ alignLeft ] Element.none
+        , el [ centerX, Font.bold, Font.size 30 ] (String.concat [ "Departures ", cool, " Center City" ] |> text)
+        , directionToggle inbound
+        ]
+
+
+selectedButton =
+    [ Background.color white, padding 10, Font.color blue ]
+
+
+deselectedButton =
+    [ Border.color white, padding 10 ]
+
+
+directionToggle inbound =
+    let
+        ( inSel, outSel ) =
+            case inbound of
+                True ->
+                    ( selectedButton, deselectedButton )
+
+                False ->
+                    ( deselectedButton, selectedButton )
+    in
+    row [ alignRight, paddingEach { top = 0, right = 40, bottom = 0, left = 0 }, spacing 20 ]
+        [ el (inSel ++ [ Events.onClick (SetDirection True) ]) (text "Inbound")
+        , el (outSel ++ [ Events.onClick (SetDirection False) ]) (text "Outbound")
+        ]
 
 
 viewLine : Line -> Element Msg
