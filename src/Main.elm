@@ -202,7 +202,7 @@ update msg model =
             ( model, Cmd.none )
 
         SetDirection direction ->
-            ( { model | inbound = Debug.log "going to set dir to: " direction }, Cmd.none )
+            ( { model | inbound = direction }, Cmd.none )
 
         GotOutbound result ->
             case result of
@@ -218,7 +218,7 @@ update msg model =
                     ( updateLines True model data, Cmd.none )
 
                 Err x ->
-                    ( { model | inboundLines = List.map (setToFailure (Debug.toString x)) model.inboundLines }, Cmd.none )
+                    ( { model | inboundLines = List.map (setToFailure "had trouble making the request >... sorry!") model.inboundLines }, Cmd.none )
 
 
 
@@ -327,7 +327,7 @@ viewLine : Line -> Element Msg
 viewLine line =
     case line.reqStatus of
         Failure m ->
-            el [] (text (Debug.toString line ++ ": " ++ m))
+            el [] (text (line.name ++ ": " ++ m))
 
         Loading ->
             viewLoading
