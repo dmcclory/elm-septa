@@ -60,7 +60,8 @@ type alias Line =
 
 
 type alias Model =
-    { lines : List Line
+    { inboundLines : List Line
+    , outboundLines : List Line
     , inbound : Bool
     }
 
@@ -104,12 +105,25 @@ init _ =
         inbound =
             True
     in
-    ( { lines = lineData, inbound = inbound }, kickoffRequests lineDatas inbound )
+    ( { outboundLines = lineData, inboundLines = lineData, inbound = inbound }, kickoffRequests lineDatas inbound )
 
 
 kickoffRequests : List ( String, String ) -> Bool -> Cmd Msg
 kickoffRequests lds inbound =
-    Cmd.batch (List.map (\l -> Http.send GotData (getSeptaData (Tuple.first l) inbound)) lds)
+    let
+        pairs =
+            List.map (\d -> ( d, True )) lds ++ List.map (\d -> ( d, False )) lds
+
+        signaler =
+            \d ->
+                case d of
+                    True ->
+                        GotInbound
+
+                    False ->
+                        GotOutbound
+    in
+    Cmd.batch (List.map (\( l, d ) -> Http.send (signaler d) (getSeptaData (Tuple.first l) d)) pairs)
 
 
 getSeptaData : String -> Bool -> Http.Request (List Train)
@@ -135,7 +149,8 @@ getSeptaData originStation inbound =
 
 type Msg
     = NoOp
-    | GotData (Result Http.Error (List Train))
+    | GotOutbound (Result Http.Error (List Train))
+    | GotInbound (Result Http.Error (List Train))
     | SetDirection Bool
 
 
@@ -162,6 +177,24 @@ setToFailure message line =
     { line | reqStatus = Failure message }
 
 
+updateLines inbound model data =
+    let
+        updater =
+            case List.head data of
+                Just t ->
+                    updateIfLineNameMatches t.line data
+
+                Nothing ->
+                    setToFailure "data ... seems empty?"
+    in
+    case inbound of
+        True ->
+            { model | inboundLines = List.map updater model.inboundLines }
+
+        False ->
+            { model | outboundLines = List.map updater model.outboundLines }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -171,25 +204,21 @@ update msg model =
         SetDirection direction ->
             ( { model | inbound = Debug.log "going to set dir to: " direction }, Cmd.none )
 
-        GotData result ->
+        GotOutbound result ->
             case result of
                 Ok data ->
-                    let
-                        -- get the current line from the first result
-                        -- set to failure if that is empty
-                        -- pass that in the updater
-                        updater =
-                            case List.head data of
-                                Just t ->
-                                    updateIfLineNameMatches t.line data
-
-                                Nothing ->
-                                    setToFailure "data seems ... empty?"
-                    in
-                    ( { model | lines = List.map updater model.lines }, Cmd.none )
+                    ( updateLines False model data, Cmd.none )
 
                 Err x ->
-                    ( { model | lines = List.map (setToFailure (Debug.toString x)) model.lines }, Cmd.none )
+                    ( model, Cmd.none )
+
+        GotInbound result ->
+            case result of
+                Ok data ->
+                    ( updateLines True model data, Cmd.none )
+
+                Err x ->
+                    ( { model | inboundLines = List.map (setToFailure (Debug.toString x)) model.inboundLines }, Cmd.none )
 
 
 
@@ -228,11 +257,21 @@ grey =
     rgb255 153 153 153
 
 
+lineSelector : Model -> List Line
+lineSelector model =
+    case model.inbound of
+        True ->
+            model.inboundLines
+
+        False ->
+            model.outboundLines
+
+
 view : Model -> Html Msg
 view model =
     let
         divs =
-            wrappedRow [] (List.map viewLine model.lines)
+            wrappedRow [] (List.map viewLine (lineSelector model))
     in
     Element.layout []
         (column
