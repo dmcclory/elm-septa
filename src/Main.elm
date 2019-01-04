@@ -9,7 +9,7 @@ import Element.Font as Font
 import Html exposing (Html)
 import Http
 import Json.Decode as Decode
-import Url.Builder exposing (crossOrigin)
+import Url.Builder exposing (crossOrigin, relative)
 
 
 main : Program () Model Msg
@@ -138,7 +138,9 @@ getSeptaData originStation inbound =
                     ( "Market East", originStation )
 
         url =
-            crossOrigin "http://localhost:4567" [ "forward", origin, destination, "10" ] []
+            relative [ "forward", origin, destination, "10" ] []
+
+        --crossOrigin "http://localhost:4567" [ "forward", origin, destination, "10" ] []
     in
     Http.get url decodeTrains
 
@@ -327,8 +329,9 @@ viewLine : Line -> Element Msg
 viewLine line =
     case line.reqStatus of
         Failure m ->
-            el [] (text (line.name ++ ": " ++ m))
+            viewLoadError line m
 
+        -- el [] (text (line.name ++ ": " ++ m))
         Loading ->
             viewLoading
 
@@ -347,6 +350,10 @@ boxAttrs =
     , width (px 475)
     , height (px 290)
     ]
+
+
+viewLoadError line m =
+    el boxAttrs (text (line.name ++ ": " ++ m))
 
 
 viewLoading : Element Msg
