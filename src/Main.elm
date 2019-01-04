@@ -22,16 +22,6 @@ main =
         }
 
 
-type alias Train =
-    { number : String
-    , line : String
-    , departureTime : String
-    , arrivalTime : String
-    , delay : String
-    , direct : String
-    }
-
-
 decodeTrain : Decode.Decoder Train
 decodeTrain =
     Decode.map6 Train
@@ -50,6 +40,16 @@ decodeTrains =
 
 
 ---- MODEL ----
+
+
+type alias Train =
+    { number : String
+    , line : String
+    , departureTime : String
+    , arrivalTime : String
+    , delay : String
+    , direct : String
+    }
 
 
 type alias Line =
@@ -86,10 +86,6 @@ lineDatas =
     , ( "West Trenton", "West Trenton" )
     , ( "Wilmington", "Wilmington/Newark" )
     ]
-
-
-current =
-    "Chestnut Hill West"
 
 
 init : () -> ( Model, Cmd Msg )
@@ -139,8 +135,6 @@ getSeptaData originStation inbound =
 
         url =
             relative [ "forward", origin, destination, "10" ] []
-
-        --crossOrigin "http://localhost:4567" [ "forward", origin, destination, "10" ] []
     in
     Http.get url decodeTrains
 
@@ -227,59 +221,17 @@ update msg model =
 ---- VIEW ----
 
 
-white =
-    rgb255 255 255 255
-
-
-black =
-    rgb255 0 0 0
-
-
-blue =
-    rgb255 0 0 204
-
-
-green =
-    rgb255 0 255 0
-
-
-red =
-    rgb255 255 0 0
-
-
-cyan =
-    rgb255 0 255 255
-
-
-darkBlue =
-    rgb255 0 0 102
-
-
-grey =
-    rgb255 153 153 153
-
-
-lineSelector : Model -> List Line
-lineSelector model =
-    case model.inbound of
-        True ->
-            model.inboundLines
-
-        False ->
-            model.outboundLines
-
-
 view : Model -> Html Msg
 view model =
     let
-        divs =
+        departingTrains =
             wrappedRow [] (List.map viewLine (lineSelector model))
     in
     Element.layout []
         (column
             [ Background.color black, Font.color white, width fill, centerX, padding 5 ]
             [ viewHeader model.inbound
-            , divs
+            , departingTrains
             ]
         )
 
@@ -325,22 +277,27 @@ directionToggle inbound =
         ]
 
 
+lineSelector : Model -> List Line
+lineSelector model =
+    case model.inbound of
+        True ->
+            model.inboundLines
+
+        False ->
+            model.outboundLines
+
+
 viewLine : Line -> Element Msg
 viewLine line =
     case line.reqStatus of
         Failure m ->
             viewLoadError line m
 
-        -- el [] (text (line.name ++ ": " ++ m))
         Loading ->
             viewLoading
 
         Success ->
             viewLineRefactorMe line
-
-
-
--- boxAttrs : List Element.Attribute Msg
 
 
 boxAttrs =
@@ -392,3 +349,35 @@ viewTrainStatus delay =
 
 viewLineHeader line =
     row [ Background.color darkBlue, width fill, height (px 50), centerX ] [ el [ centerX ] (text line.name) ]
+
+
+white =
+    rgb255 255 255 255
+
+
+black =
+    rgb255 0 0 0
+
+
+blue =
+    rgb255 0 0 204
+
+
+green =
+    rgb255 0 255 0
+
+
+red =
+    rgb255 255 0 0
+
+
+cyan =
+    rgb255 0 255 255
+
+
+darkBlue =
+    rgb255 0 0 102
+
+
+grey =
+    rgb255 153 153 153
