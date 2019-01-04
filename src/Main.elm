@@ -9,6 +9,7 @@ import Element.Font as Font
 import Html exposing (Html)
 import Http
 import Json.Decode as Decode
+import Time
 import Url.Builder exposing (crossOrigin, relative)
 
 
@@ -18,8 +19,12 @@ main =
         { view = view
         , init = init
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
+
+
+subscriptions model =
+    Time.every 5000 Tick
 
 
 decodeTrain : Decode.Decoder Train
@@ -63,6 +68,7 @@ type alias Model =
     { inboundLines : List Line
     , outboundLines : List Line
     , inbound : Bool
+    , counter : Int
     }
 
 
@@ -101,7 +107,7 @@ init _ =
         inbound =
             True
     in
-    ( { outboundLines = lineData, inboundLines = lineData, inbound = inbound }, kickoffRequests lineDatas inbound )
+    ( { outboundLines = lineData, inboundLines = lineData, inbound = inbound, counter = 40 }, kickoffRequests lineDatas inbound )
 
 
 kickoffRequests : List ( String, String ) -> Bool -> Cmd Msg
@@ -148,6 +154,7 @@ type Msg
     | GotOutbound (Result Http.Error (List Train))
     | GotInbound (Result Http.Error (List Train))
     | SetDirection Bool
+    | Tick Time.Posix
 
 
 setTrains : List Train -> Line -> Line
@@ -216,6 +223,9 @@ update msg model =
                 Err x ->
                     ( { model | inboundLines = List.map (setToFailure "had trouble making the request >... sorry!") model.inboundLines }, Cmd.none )
 
+        Tick _ ->
+            ( { model | counter = model.counter + 1 }, Cmd.none )
+
 
 
 ---- VIEW ----
@@ -230,13 +240,13 @@ view model =
     Element.layout []
         (column
             [ Background.color black, Font.color white, width fill, centerX, padding 5 ]
-            [ viewHeader model.inbound
+            [ viewHeader model.inbound model.counter
             , departingTrains
             ]
         )
 
 
-viewHeader inbound =
+viewHeader inbound counter =
     let
         cool =
             case inbound of
@@ -247,7 +257,7 @@ viewHeader inbound =
                     "from"
     in
     row [ Background.color blue, centerX, width fill ]
-        [ el [ alignLeft ] Element.none
+        [ el [ alignLeft ] (text (String.fromInt counter))
         , el [ centerX, Font.bold, Font.size 30 ] (String.concat [ "Departures ", cool, " Center City" ] |> text)
         , directionToggle inbound
         ]
@@ -297,7 +307,7 @@ viewLine line =
             viewLoading
 
         Success ->
-            viewLineRefactorMe line
+            viewTrains line
 
 
 boxAttrs =
@@ -318,8 +328,8 @@ viewLoading =
     el boxAttrs (text "Loading...")
 
 
-viewLineRefactorMe : Line -> Element Msg
-viewLineRefactorMe line =
+viewTrains : Line -> Element Msg
+viewTrains line =
     column boxAttrs
         ([ viewLineHeader line ]
             ++ (List.take 4 line.trains |> List.map viewTrain)
