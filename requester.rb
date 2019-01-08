@@ -6,36 +6,55 @@ require 'sinatra/cross_origin'
 require 'http'
 require 'json'
 
-class Looper
+class LineFetcher
   include SuckerPunch::Job
 
-  def perform(key)
-    CACHE[key] += 1
-    puts "hey man, I am a job!"
-    puts "gonna request to run myself again in 5 seconds"
-    self.class.perform_in(8, key)
+  def perform(line)
+    self.class.perform_in(30, line)
+    fetch_and_cache(line, :outbound)
+    fetch_and_cache(line, :inbound)
+  end
+
+  def fetch_and_cache(line, direction)
+    args = (direction == :inbound) ? [line[:origin], "Market East"] : ["Market East", line[:origin]]
+    url = build_url(*args)
+    data = get_data(url)
+    CACHE[direction][line[:line_name]] = JSON.parse(data)
+  end
+
+  def build_url(origin, destination, limit=5)
+    "http://www3.septa.org/hackathon/NextToArrive/#{origin}/#{destination}/#{limit}"
+  end
+
+  def get_data(url)
+    response = Http.get(url)
+    body = response.body
+    puts "got a ??? response code: #{response.code}"
+    result = body.take_while { |i| i != nil }
+    puts "going to return this as json: #{result.join}"
+    result.join
   end
 end
 
 LINES = [
-	{ origin: "Airport Terminal E-F", name: "Airport" },
-	{ origin: "Chestnut Hill East", name: "Chestnut Hill East" },
-	{ origin: "Chestnut Hill West", name: "Chestnut Hill West" },
-	{ origin: "Fox Chase", name: "Fox Chase" },
-	{ origin: "Lansdale", name: "Lansdale/Doylestown" },
-	{ origin: "Manayunk", name: "Manayunk/Norristown" },
-	{ origin: "Elwyn Station", name: "Media/Elwyn" },
-	{ origin: "Malvern", name: "Paoli/Thorndale" },
-	{ origin: "Trenton", name: "Trenton" },
-	{ origin: "Warminster", name: "Warminster" },
-	{ origin: "West Trenton", name: "West Trenton" },
-	{ origin: "Wilmington", name: "Wilmington/Newark" },
+	{ origin: "Airport Terminal E-F", line_name: "Airport" },
+	{ origin: "Chestnut Hill East", line_name: "Chestnut Hill East" },
+	{ origin: "Chestnut Hill West", line_name: "Chestnut Hill West" },
+	{ origin: "Fox Chase", line_name: "Fox Chase" },
+	{ origin: "Lansdale", line_name: "Lansdale/Doylestown" },
+	{ origin: "Manayunk", line_name: "Manayunk/Norristown" },
+	{ origin: "Elwyn Station", line_name: "Media/Elwyn" },
+	{ origin: "Malvern", line_name: "Paoli/Thorndale" },
+	{ origin: "Trenton", line_name: "Trenton" },
+	{ origin: "Warminster", line_name: "Warminster" },
+	{ origin: "West Trenton", line_name: "West Trenton" },
+	{ origin: "Wilmington", line_name: "Wilmington/Newark" },
 ]
 
-CACHE = LINES.map { |l| [l[:origin], 0] }.to_h
+CACHE = { inbound: {}, outbound: {} }
 
-CACHE.keys.each do |k|
-	Looper.perform_in(rand(0..20), k)
+LINES.each do |line|
+	LineFetcher.perform_in(rand(0..20), line)
 end
 
 get '/' do
