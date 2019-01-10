@@ -60,13 +60,18 @@ type alias Train =
 type alias Line =
     { name : String
     , trains : List Train
+    }
+
+
+type alias LineReq =
+    { line : Line
     , reqStatus : Request
     }
 
 
 type alias Model =
-    { inboundLines : List Line
-    , outboundLines : List Line
+    { inboundLines : List LineReq
+    , outboundLines : List LineReq
     , inbound : Bool
     , counter : Int
     }
@@ -100,7 +105,7 @@ init _ =
         lineData =
             List.map
                 (\l ->
-                    { reqStatus = Loading, name = Tuple.second l, trains = [] }
+                    { reqStatus = Loading, line = { name = Tuple.second l, trains = [] } }
                 )
                 lineDatas
 
@@ -162,22 +167,22 @@ setTrains newTrains line =
     { line | trains = newTrains }
 
 
-updateIfLineNameMatches : String -> List Train -> Line -> Line
-updateIfLineNameMatches lineName trainResult line =
-    if line.name == lineName then
+updateIfLineNameMatches : String -> List Train -> LineReq -> LineReq
+updateIfLineNameMatches lineName trainResult lineReq =
+    if lineReq.line.name == lineName then
         let
             newLine =
-                setTrains trainResult line
+                setTrains trainResult lineReq.line
         in
-        { newLine | reqStatus = Success }
+        { line = newLine, reqStatus = Success }
 
     else
-        line
+        lineReq
 
 
-setToFailure : String -> Line -> Line
-setToFailure message line =
-    { line | reqStatus = Failure message }
+setToFailure : String -> LineReq -> LineReq
+setToFailure message lineReq =
+    { lineReq | reqStatus = Failure message }
 
 
 updateLines inbound model data =
@@ -287,7 +292,7 @@ directionToggle inbound =
         ]
 
 
-lineSelector : Model -> List Line
+lineSelector : Model -> List LineReq
 lineSelector model =
     case model.inbound of
         True ->
@@ -297,17 +302,17 @@ lineSelector model =
             model.outboundLines
 
 
-viewLine : Line -> Element Msg
-viewLine line =
-    case line.reqStatus of
+viewLine : LineReq -> Element Msg
+viewLine lineReq =
+    case lineReq.reqStatus of
         Failure m ->
-            viewLoadError line m
+            viewLoadError lineReq m
 
         Loading ->
             viewLoading
 
         Success ->
-            viewTrains line
+            viewTrains lineReq.line
 
 
 boxAttrs =
@@ -319,8 +324,8 @@ boxAttrs =
     ]
 
 
-viewLoadError line m =
-    el boxAttrs (text (line.name ++ ": " ++ m))
+viewLoadError lineReq m =
+    el boxAttrs (text (lineReq.line.name ++ ": " ++ m))
 
 
 viewLoading : Element Msg
