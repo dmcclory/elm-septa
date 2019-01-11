@@ -25,7 +25,6 @@ main =
 
 
 subscriptions model =
-    -- Time.e
     Time.every 5000 Tick
 
 
@@ -100,7 +99,6 @@ type alias Model =
     { inboundLines : List LineReq
     , outboundLines : List LineReq
     , inbound : Bool
-    , counter : Int
     , dumb : String
     }
 
@@ -140,7 +138,7 @@ init _ =
         inbound =
             True
     in
-    ( { dumb = "", outboundLines = lineData, inboundLines = lineData, inbound = inbound, counter = 40 }, kickoffRequests lineDatas inbound )
+    ( { dumb = "", outboundLines = lineData, inboundLines = lineData, inbound = inbound }, kickoffRequests lineDatas inbound )
 
 
 kickoffRequests : List ( String, String ) -> Bool -> Cmd Msg
@@ -163,7 +161,7 @@ kickoffRequests lds inbound =
 
 getLinesData : Http.Request LineReqResult
 getLinesData =
-    Http.get (relative [ "dumb" ] []) decodeLineReqResult
+    Http.get (relative [ "lines" ] []) decodeLineReqResult
 
 
 getSeptaData : String -> Bool -> Http.Request (List Train)
@@ -268,8 +266,8 @@ update msg model =
                     let
                         message =
                             case List.head data.inbound of
-                                Just dumb ->
-                                    dumb.name
+                                Just line ->
+                                    line.name
 
                                 Nothing ->
                                     "what the frick"
@@ -284,7 +282,6 @@ update msg model =
 
 
 
--- ( { model | counter = model.counter + 1 }, Cmd.none )
 ---- VIEW ----
 
 
