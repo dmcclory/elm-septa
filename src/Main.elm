@@ -99,7 +99,6 @@ type alias Model =
     { inboundLines : List Line
     , outboundLines : List Line
     , inbound : Bool
-    , dumb : String
     }
 
 
@@ -134,14 +133,10 @@ init _ =
                     { name = Tuple.second l, trains = [] }
                 )
                 lineDatas
-
-        inbound =
-            True
     in
-    ( { dumb = ""
-      , outboundLines = lineData
+    ( { outboundLines = lineData
       , inboundLines = lineData
-      , inbound = inbound
+      , inbound = True
       }
     , Cmd.none
     )
@@ -175,19 +170,12 @@ update msg model =
         GotLinesData result ->
             case result of
                 Ok data ->
-                    let
-                        message =
-                            case List.head data.inbound of
-                                Just line ->
-                                    line.name
-
-                                Nothing ->
-                                    "what the frick"
-                    in
-                    ( { model | inboundLines = data.inbound, outboundLines = data.outbound, dumb = message }, Cmd.none )
+                    ( { model | inboundLines = data.inbound, outboundLines = data.outbound }
+                    , Cmd.none
+                    )
 
                 Err x ->
-                    ( { model | dumb = "Real dumb" }, Cmd.none )
+                    ( model, Cmd.none )
 
         Tick _ ->
             ( model, Http.send GotLinesData getLinesData )
@@ -206,13 +194,13 @@ view model =
     Element.layout []
         (column
             [ Background.color black, Font.color white, width fill, centerX, padding 5 ]
-            [ viewHeader model.inbound model.dumb
+            [ viewHeader model.inbound
             , departingTrains
             ]
         )
 
 
-viewHeader inbound dumb =
+viewHeader inbound =
     let
         cool =
             case inbound of
@@ -223,7 +211,7 @@ viewHeader inbound dumb =
                     "from"
     in
     row [ Background.color blue, centerX, width fill ]
-        [ el [ alignLeft ] (text dumb)
+        [ el [ alignLeft ] (text "")
         , el [ centerX, Font.bold, Font.size 30 ] (String.concat [ "Departures ", cool, " Center City" ] |> text)
         , directionToggle inbound
         ]
