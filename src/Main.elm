@@ -96,8 +96,8 @@ type alias LineReqResult =
 
 
 type alias Model =
-    { inboundLines : List LineReq
-    , outboundLines : List LineReq
+    { inboundLines : List Line
+    , outboundLines : List Line
     , inbound : Bool
     , dumb : String
     }
@@ -131,54 +131,25 @@ init _ =
         lineData =
             List.map
                 (\l ->
-                    { reqStatus = Loading, line = { name = Tuple.second l, trains = [] } }
+                    { name = Tuple.second l, trains = [] }
                 )
                 lineDatas
 
         inbound =
             True
     in
-    ( { dumb = "", outboundLines = lineData, inboundLines = lineData, inbound = inbound }, kickoffRequests lineDatas inbound )
-
-
-kickoffRequests : List ( String, String ) -> Bool -> Cmd Msg
-kickoffRequests lds inbound =
-    let
-        pairs =
-            List.map (\d -> ( d, True )) lds ++ List.map (\d -> ( d, False )) lds
-
-        signaler =
-            \d ->
-                case d of
-                    True ->
-                        GotInbound
-
-                    False ->
-                        GotOutbound
-    in
-    Cmd.batch (List.map (\( l, d ) -> Http.send (signaler d) (getSeptaData (Tuple.first l) d)) pairs)
+    ( { dumb = ""
+      , outboundLines = lineData
+      , inboundLines = lineData
+      , inbound = inbound
+      }
+    , Cmd.none
+    )
 
 
 getLinesData : Http.Request LineReqResult
 getLinesData =
     Http.get (relative [ "lines" ] []) decodeLineReqResult
-
-
-getSeptaData : String -> Bool -> Http.Request (List Train)
-getSeptaData originStation inbound =
-    let
-        ( origin, destination ) =
-            case inbound of
-                True ->
-                    ( originStation, "Market East" )
-
-                False ->
-                    ( "Market East", originStation )
-
-        url =
-            relative [ "forward", origin, destination, "10" ] []
-    in
-    Http.get url decodeTrains
 
 
 
@@ -187,52 +158,9 @@ getSeptaData originStation inbound =
 
 type Msg
     = NoOp
-    | GotOutbound (Result Http.Error (List Train))
-    | GotInbound (Result Http.Error (List Train))
     | GotLinesData (Result Http.Error LineReqResult)
     | SetDirection Bool
     | Tick Time.Posix
-
-
-setTrains : List Train -> Line -> Line
-setTrains newTrains line =
-    { line | trains = newTrains }
-
-
-updateIfLineNameMatches : String -> List Train -> LineReq -> LineReq
-updateIfLineNameMatches lineName trainResult lineReq =
-    if lineReq.line.name == lineName then
-        let
-            newLine =
-                setTrains trainResult lineReq.line
-        in
-        { line = newLine, reqStatus = Success }
-
-    else
-        lineReq
-
-
-setToFailure : String -> LineReq -> LineReq
-setToFailure message lineReq =
-    { lineReq | reqStatus = Failure message }
-
-
-updateLines inbound model data =
-    let
-        updater =
-            case List.head data of
-                Just t ->
-                    updateIfLineNameMatches t.line data
-
-                Nothing ->
-                    setToFailure "data ... seems empty?"
-    in
-    case inbound of
-        True ->
-            { model | inboundLines = List.map updater model.inboundLines }
-
-        False ->
-            { model | outboundLines = List.map updater model.outboundLines }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -243,22 +171,6 @@ update msg model =
 
         SetDirection direction ->
             ( { model | inbound = direction }, Cmd.none )
-
-        GotOutbound result ->
-            case result of
-                Ok data ->
-                    ( updateLines False model data, Cmd.none )
-
-                Err x ->
-                    ( model, Cmd.none )
-
-        GotInbound result ->
-            case result of
-                Ok data ->
-                    ( updateLines True model data, Cmd.none )
-
-                Err x ->
-                    ( { model | inboundLines = List.map (setToFailure "had trouble making the request >... sorry!") model.inboundLines }, Cmd.none )
 
         GotLinesData result ->
             case result of
@@ -272,7 +184,7 @@ update msg model =
                                 Nothing ->
                                     "what the frick"
                     in
-                    ( { model | dumb = message }, Cmd.none )
+                    ( { model | inboundLines = data.inbound, outboundLines = data.outbound, dumb = message }, Cmd.none )
 
                 Err x ->
                     ( { model | dumb = "Real dumb" }, Cmd.none )
@@ -341,7 +253,7 @@ directionToggle inbound =
         ]
 
 
-lineSelector : Model -> List LineReq
+lineSelector : Model -> List Line
 lineSelector model =
     case model.inbound of
         True ->
@@ -351,17 +263,9 @@ lineSelector model =
             model.outboundLines
 
 
-viewLine : LineReq -> Element Msg
-viewLine lineReq =
-    case lineReq.reqStatus of
-        Failure m ->
-            viewLoadError lineReq m
-
-        Loading ->
-            viewLoading
-
-        Success ->
-            viewTrains lineReq.line
+viewLine : Line -> Element Msg
+viewLine line =
+    viewTrains line
 
 
 boxAttrs =
