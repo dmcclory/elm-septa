@@ -1,6 +1,7 @@
 module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
+import Dict exposing (Dict)
 import Element exposing (Element, alignLeft, alignRight, centerX, centerY, column, el, fill, height, padding, paddingEach, paddingXY, px, rgb255, row, spacing, text, width, wrappedRow)
 import Element.Background as Background
 import Element.Border as Border
@@ -24,6 +25,7 @@ main =
 
 
 subscriptions model =
+    -- Time.e
     Time.every 5000 Tick
 
 
@@ -43,6 +45,25 @@ decodeTrains =
     Decode.list decodeTrain
 
 
+decodeLine : Decode.Decoder Line
+decodeLine =
+    Decode.map2 Line
+        (Decode.field "trains" decodeTrains)
+        (Decode.field "name" Decode.string)
+
+
+decodeLines : Decode.Decoder (List Line)
+decodeLines =
+    Decode.list decodeLine
+
+
+decodeLineReqResult : Decode.Decoder LineReqResult
+decodeLineReqResult =
+    Decode.map2 LineReqResult
+        (Decode.field "inbound" decodeLines)
+        (Decode.field "outbound" decodeLines)
+
+
 
 ---- MODEL ----
 
@@ -58,8 +79,8 @@ type alias Train =
 
 
 type alias Line =
-    { name : String
-    , trains : List Train
+    { trains : List Train
+    , name : String
     }
 
 
@@ -69,11 +90,18 @@ type alias LineReq =
     }
 
 
+type alias LineReqResult =
+    { inbound : List Line
+    , outbound : List Line
+    }
+
+
 type alias Model =
     { inboundLines : List LineReq
     , outboundLines : List LineReq
     , inbound : Bool
     , counter : Int
+    , dumb : String
     }
 
 
@@ -112,7 +140,7 @@ init _ =
         inbound =
             True
     in
-    ( { outboundLines = lineData, inboundLines = lineData, inbound = inbound, counter = 40 }, kickoffRequests lineDatas inbound )
+    ( { dumb = "", outboundLines = lineData, inboundLines = lineData, inbound = inbound, counter = 40 }, kickoffRequests lineDatas inbound )
 
 
 kickoffRequests : List ( String, String ) -> Bool -> Cmd Msg
@@ -131,6 +159,11 @@ kickoffRequests lds inbound =
                         GotOutbound
     in
     Cmd.batch (List.map (\( l, d ) -> Http.send (signaler d) (getSeptaData (Tuple.first l) d)) pairs)
+
+
+getLinesData : Http.Request LineReqResult
+getLinesData =
+    Http.get (relative [ "dumb" ] []) decodeLineReqResult
 
 
 getSeptaData : String -> Bool -> Http.Request (List Train)
@@ -158,6 +191,7 @@ type Msg
     = NoOp
     | GotOutbound (Result Http.Error (List Train))
     | GotInbound (Result Http.Error (List Train))
+    | GotLinesData (Result Http.Error LineReqResult)
     | SetDirection Bool
     | Tick Time.Posix
 
@@ -228,11 +262,29 @@ update msg model =
                 Err x ->
                     ( { model | inboundLines = List.map (setToFailure "had trouble making the request >... sorry!") model.inboundLines }, Cmd.none )
 
+        GotLinesData result ->
+            case result of
+                Ok data ->
+                    let
+                        message =
+                            case List.head data.inbound of
+                                Just dumb ->
+                                    dumb.name
+
+                                Nothing ->
+                                    "what the frick"
+                    in
+                    ( { model | dumb = message }, Cmd.none )
+
+                Err x ->
+                    ( { model | dumb = "Real dumb" }, Cmd.none )
+
         Tick _ ->
-            ( { model | counter = model.counter + 1 }, Cmd.none )
+            ( model, Http.send GotLinesData getLinesData )
 
 
 
+-- ( { model | counter = model.counter + 1 }, Cmd.none )
 ---- VIEW ----
 
 
@@ -245,13 +297,13 @@ view model =
     Element.layout []
         (column
             [ Background.color black, Font.color white, width fill, centerX, padding 5 ]
-            [ viewHeader model.inbound model.counter
+            [ viewHeader model.inbound model.dumb
             , departingTrains
             ]
         )
 
 
-viewHeader inbound counter =
+viewHeader inbound dumb =
     let
         cool =
             case inbound of
@@ -262,7 +314,7 @@ viewHeader inbound counter =
                     "from"
     in
     row [ Background.color blue, centerX, width fill ]
-        [ el [ alignLeft ] (text (String.fromInt counter))
+        [ el [ alignLeft ] (text dumb)
         , el [ centerX, Font.bold, Font.size 30 ] (String.concat [ "Departures ", cool, " Center City" ] |> text)
         , directionToggle inbound
         ]

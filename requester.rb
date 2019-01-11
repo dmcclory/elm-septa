@@ -62,7 +62,12 @@ get '/' do
 end
 
 get '/awesome' do
-  JSON.dump CACHE
+  JSON.dump CACHE.map { |k, v| [k, v.values] }.to_h
+end
+
+get '/dumb' do
+  res = CACHE.map { |direction, lines| [direction, lines.map { |k,v| { name: k, trains: v } } ]}.to_h
+  JSON.dump(res)
 end
 
 configure do
