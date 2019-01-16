@@ -25,7 +25,7 @@ main =
 
 
 subscriptions model =
-    Time.every 5000 Tick
+    Time.every 60000 Tick
 
 
 decodeTrain : Decode.Decoder Train
@@ -138,7 +138,7 @@ init _ =
       , inboundLines = lineData
       , inbound = True
       }
-    , Cmd.none
+    , Http.send GotLinesData getLinesData
     )
 
 
@@ -170,7 +170,10 @@ update msg model =
         GotLinesData result ->
             case result of
                 Ok data ->
-                    ( { model | inboundLines = data.inbound, outboundLines = data.outbound }
+                    ( { model
+                        | inboundLines = List.sortBy .name data.inbound
+                        , outboundLines = List.sortBy .name data.outbound
+                      }
                     , Cmd.none
                     )
 
