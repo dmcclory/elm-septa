@@ -79,6 +79,8 @@ LINES.each do |line|
 	LineFetcher.perform_in(rand(0..20), line, cached_response)
 end
 
+set :public_folder, File.dirname(__FILE__) + '/build'
+
 get '/' do
   'Hello world!'
 end
