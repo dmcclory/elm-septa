@@ -1,7 +1,7 @@
 # myapp.rb
 
 require 'sucker_punch'
-require 'sinatra'
+require 'sinatra/base'
 require 'http'
 require 'json'
 
@@ -73,36 +73,38 @@ LINES = [
 	{ origin: "Wilmington", line_name: "Wilmington/Newark" },
 ]
 
-cached_response = SimpleCache.new()
+CACHED_RESPONSE = SimpleCache.new()
 LINES.each do |line|
-	LineFetcher.perform_in(rand(0..20), line, cached_response)
+	LineFetcher.perform_in(rand(0..20), line, CACHED_RESPONSE)
 end
 
-set :public_folder, File.dirname(__FILE__) + '/build'
+class App < Sinatra::Base
+  set :public_folder, File.dirname(__FILE__) + '/build'
 
-get '/' do
-  'Hello world!'
-end
+  get '/' do
+    'Hello world!'
+  end
 
-get '/lines' do
-  cached_response.data
-end
+  get '/lines' do
+    CACHED_RESPONSE.data
+  end
 
-def build_url(origin, destination, limit=5)
-  "http://www3.septa.org/hackathon/NextToArrive/#{origin}/#{destination}/#{limit}"
-end
+  def build_url(origin, destination, limit=5)
+    "http://www3.septa.org/hackathon/NextToArrive/#{origin}/#{destination}/#{limit}"
+  end
 
-def get_data(url)
-  response = Http.get(url)
-  body = response.body
-  puts "got a ??? response code: #{response.code}"
-  result = body.take_while { |i| i != nil }
-  puts "going to return this as json: #{result.join}"
-  result.join
-end
+  def get_data(url)
+    response = Http.get(url)
+    body = response.body
+    puts "got a ??? response code: #{response.code}"
+    result = body.take_while { |i| i != nil }
+    puts "going to return this as json: #{result.join}"
+    result.join
+  end
 
-get '/forward/*' do |path|
-  content_type :json
-  url = "http://www3.septa.org/hackathon/NextToArrive/#{path}"
-  get_data(url)
+  get '/forward/*' do |path|
+    content_type :json
+    url = "http://www3.septa.org/hackathon/NextToArrive/#{path}"
+    get_data(url)
+  end
 end
