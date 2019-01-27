@@ -2,7 +2,6 @@
 
 require 'sucker_punch'
 require 'sinatra'
-require 'sinatra/cross_origin'
 require 'http'
 require 'json'
 
@@ -87,20 +86,6 @@ end
 
 get '/lines' do
   cached_response.data
-end
-
-configure do
-  enable :cross_origin
-end
-
-before do
-  response.headers['Access-Control-Allow-Origin'] = '*'
-end
-
-options "*" do
-  response.headers["Allow"] = "HEAD,GET,PUT,POST,DELETE,OPTIONS"
-  response.headers["Access-Control-Allow-Headers"] = "X-Requested-With, X-HTTP-Method-Override, Content-Type, Cache-Control, Accept"
-  200
 end
 
 def build_url(origin, destination, limit=5)
