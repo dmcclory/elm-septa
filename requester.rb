@@ -6,20 +6,42 @@ require 'sinatra/cross_origin'
 require 'http'
 require 'json'
 
+class SimpleCache
+  attr_reader :data
+
+  def initialize(data="")
+    @cache = { inbound: {}, outbound: {} }
+    @data = data
+  end
+
+  def update(direction, line_name,  data)
+    @cache[direction][line_name] = JSON.parse(data)
+    res = @cache.map { |direction, lines|
+      [direction, lines.map { |k,v| { name: k, trains: v } }]
+    }.to_h
+    @data = JSON.dump(res)
+  end
+
+  def read
+    @data
+  end
+end
+
 class LineFetcher
   include SuckerPunch::Job
 
-  def perform(line)
-    self.class.perform_in(30, line)
-    fetch_and_cache(line, :outbound)
-    fetch_and_cache(line, :inbound)
+  def perform(line, cached_response)
+    self.class.perform_in(60, line, cached_response)
+    fetch_and_cache(line, :outbound, cached_response)
+    fetch_and_cache(line, :inbound, cached_response)
   end
 
-  def fetch_and_cache(line, direction)
-    args = (direction == :inbound) ? [line[:origin], "Market East"] : ["Market East", line[:origin]]
+  def fetch_and_cache(line, direction, cached_response)
+    args = (direction == :inbound) ?
+      [line[:origin], "Market East"] : ["Market East", line[:origin]]
     url = build_url(*args)
     data = get_data(url)
-    CACHE[direction][line[:line_name]] = JSON.parse(data)
+    cached_response.update(direction, line[:line_name], data)
   end
 
   def build_url(origin, destination, limit=5)
@@ -36,6 +58,7 @@ class LineFetcher
   end
 end
 
+
 LINES = [
 	{ origin: "Airport Terminal E-F", line_name: "Airport" },
 	{ origin: "Chestnut Hill East", line_name: "Chestnut Hill East" },
@@ -51,23 +74,17 @@ LINES = [
 	{ origin: "Wilmington", line_name: "Wilmington/Newark" },
 ]
 
-CACHE = { inbound: {}, outbound: {} }
-
+cached_response = SimpleCache.new()
 LINES.each do |line|
-	LineFetcher.perform_in(rand(0..20), line)
+	LineFetcher.perform_in(rand(0..20), line, cached_response)
 end
 
 get '/' do
   'Hello world!'
 end
 
-get '/awesome' do
-  JSON.dump CACHE.map { |k, v| [k, v.values] }.to_h
-end
-
 get '/lines' do
-  res = CACHE.map { |direction, lines| [direction, lines.map { |k,v| { name: k, trains: v } } ]}.to_h
-  JSON.dump(res)
+  cached_response.data
 end
 
 configure do
