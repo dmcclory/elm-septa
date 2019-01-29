@@ -21,6 +21,8 @@ RUN bundle install --quiet
 
 COPY requester.rb /app
 COPY config.ru /app
+
+COPY --from=assets $HOME/build/ $HOME/build/
 EXPOSE 5000
 
 ENTRYPOINT ["rackup"]
