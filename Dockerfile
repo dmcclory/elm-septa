@@ -1,3 +1,13 @@
+from node:10.12-slim as assets
+ENV HOME=/app
+COPY src/ /app/src/
+COPY elm.json /app/
+RUN yarn global add create-elm-app
+WORKDIR $HOME
+RUN elm-app build
+
+
+RUN yarn global add create-elm-app
 ###### before this do some of that 'multistage-builds' to get the elm compiled
 
 FROM ruby:2.5.3-alpine3.8
