@@ -1,6 +1,7 @@
 from node:10.12-slim as assets
 ENV HOME=/app
 COPY src/ /app/src/
+COPY public/ /app/public/
 COPY elm.json /app/
 RUN yarn global add create-elm-app
 WORKDIR $HOME
@@ -22,7 +23,7 @@ RUN bundle install --quiet
 COPY requester.rb /app
 COPY config.ru /app
 
-COPY --from=assets $HOME/build/ $HOME/build/
+COPY --from=assets /app/build/ /app/build/
 EXPOSE 5000
 
 ENTRYPOINT ["rackup"]

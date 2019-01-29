@@ -81,10 +81,6 @@ end
 class App < Sinatra::Base
   set :public_folder, File.dirname(__FILE__) + '/build'
 
-  get '/' do
-    'Hello world!'
-  end
-
   get '/lines' do
     CACHED_RESPONSE.data
   end
