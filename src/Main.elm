@@ -14,7 +14,7 @@ import Time
 import Url.Builder exposing (crossOrigin, relative)
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { view = view
@@ -74,6 +74,8 @@ type alias Train =
     , arrivalTime : String
     , delay : String
     , direct : String
+    , height : Int
+    , width : Int
     }
 
 
@@ -124,8 +126,12 @@ lineDatas =
     ]
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+type alias Flags =
+    { dimensions : { height : Int, width : Int } }
+
+
+init : Flags -> ( Model, Cmd Msg )
+init flags =
     let
         lineData =
             List.map
@@ -137,6 +143,8 @@ init _ =
     ( { outboundLines = lineData
       , inboundLines = lineData
       , inbound = True
+      , height = flags.dimensions.height
+      , width = flags.dimensions.width
       }
     , Http.send GotLinesData getLinesData
     )
@@ -194,7 +202,7 @@ view model =
         departingTrains =
             wrappedRow [] (List.map viewLine (lineSelector model))
     in
-    Element.layout []
+    Element.layout [ Background.color green, width fill ]
         (column
             [ Background.color black, Font.color white, width fill, centerX, padding 5 ]
             [ viewHeader model.inbound
@@ -216,7 +224,8 @@ viewHeader inbound =
     row [ Background.color blue, centerX, width fill ]
         [ el [ alignLeft ] (text "")
         , el [ centerX, Font.bold, Font.size 30 ] (String.concat [ "Departures ", cool, " Center City" ] |> text)
-        , directionToggle inbound
+
+        -- , directionToggle inbound
         ]
 
 
@@ -263,6 +272,8 @@ boxAttrs =
     [ Border.color white
     , Border.width 1
     , Border.solid
+
+    -- , width fill
     , width (px 475)
     , height (px 290)
     ]
